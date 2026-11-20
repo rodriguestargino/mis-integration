@@ -4,6 +4,7 @@ import com.mis.integration.application.port.AuditPort;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,6 +22,26 @@ public class PostgresAuditAdapter implements AuditPort {
     public Optional<AuditRecordSummary> findByPartnerAndHash(String partnerId, String payloadHash) {
         return repository.findByPartnerIdAndPayloadHash(partnerId, payloadHash)
                 .map(entity -> new AuditRecordSummary(entity.getId(), entity.getTraceId(), entity.getStatus()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AuditDetail> findByTraceId(String traceId) {
+        return repository.findAllByTraceIdOrderByCreatedAtAsc(traceId).stream()
+                .map(entity -> new AuditDetail(
+                        entity.getId(),
+                        entity.getTraceId(),
+                        entity.getPartnerId(),
+                        entity.getSku(),
+                        entity.getPayloadHash(),
+                        entity.getStatus(),
+                        entity.getFailureReason(),
+                        entity.getRawPayload(),
+                        entity.getCanonicalPayload(),
+                        entity.getCreatedAt(),
+                        entity.getUpdatedAt()
+                ))
+                .toList();
     }
 
     @Override

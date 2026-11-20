@@ -5,8 +5,10 @@ import com.mis.integration.application.port.AuditPort;
 import com.mis.integration.application.port.EventPublisherPort;
 import com.mis.integration.application.service.ErpIngestUseCase;
 import com.mis.integration.application.service.PayloadHashService;
+import com.mis.integration.application.service.ShadowComparisonUseCase;
 import com.mis.integration.domain.service.ErpPayloadValidator;
 import com.mis.integration.domain.service.ErpToCanonicalMapper;
+import com.mis.integration.domain.service.ShadowMigrationValidator;
 import com.mis.integration.domain.service.TaxCalculator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -54,5 +56,20 @@ public class MisBeanConfig {
             ObjectMapper objectMapper
     ) {
         return new ErpIngestUseCase(hashService, mapper, auditPort, publisherPort, objectMapper);
+    }
+
+    @Bean
+    public ShadowMigrationValidator shadowMigrationValidator() {
+        return new ShadowMigrationValidator();
+    }
+
+    @Bean
+    public ShadowComparisonUseCase shadowComparisonUseCase(
+            ErpToCanonicalMapper mapper,
+            ShadowMigrationValidator validator,
+            AuditPort auditPort,
+            ObjectMapper objectMapper
+    ) {
+        return new ShadowComparisonUseCase(mapper, validator, auditPort, objectMapper);
     }
 }
