@@ -1,0 +1,32 @@
+# MIS ERP Integration Hub - Engineering & AI Rules
+
+## 1. Architecture & Layering (Hexagonal / Clean Pragmatic)
+- `api` (inbound adapters): REST controllers, request/response validation, HTTP status mapping. Never put business rules or tax calculations here.
+- `application`: Use cases and orchestration (ETL pipeline, idempotency check, shadow validation). Coordinates domain services and outbound ports.
+- `domain`: Pure Java 21 business logic, canonical models (`CanonicalSyncEvent`), validation rules, tax calculation, and shadow diff engine. **Zero Spring/Kafka/JPA dependencies allowed in `domain`.**
+- `infrastructure`: Outbound adapters (PostgreSQL JPA repositories, Flyway migrations, Kafka producers/consumers, DLQ routing, OpenTelemetry headers).
+
+## 2. Java 21 & Code Style
+- Prefer `record` for immutable DTOs, events, value objects, and audit snapshots.
+- Use `BigDecimal` for all monetary values, prices, and tax rates (`RoundingMode.HALF_UP`, scale 4 for unit prices/taxes or scale 2 for final totals as defined by domain). Never use `double` or `float`.
+- Use sealed interfaces or explicit domain exceptions (`BusinessValidationException`, `DuplicatePayloadException`) instead of generic `RuntimeException`.
+- Keep methods small, single-purpose, and with shallow nesting (early returns).
+
+## 3. Idempotency & Data Integrity
+- Every inbound ERP payload must compute a deterministic SHA-256 hash (or canonical business key + partnerId) before processing.
+- Duplicate payloads must be short-circuited safely without publishing duplicate Kafka events, returning an explicit idempotent status.
+- All payloads (valid, duplicate, or DLQ-rejected) must leave an audit trail in PostgreSQL with `traceId`, `partnerId`, `payloadHash`, `status`, and `failureReason`.
+
+## 4. Resilience, Kafka & DLQ
+- Valid canonical events go to `saas-sync-entities`.
+- Invalid/corrupted/unrecoverable messages go to `saas-sync-dlq` with headers: `X-Trace-Id`, `X-Partner-Id`, `X-Error-Reason`, `X-Original-Topic`.
+- Transient infrastructure failures must use exponential backoff retries before routing to DLQ.
+- Business validation errors must NOT be retried infinitely — route immediately to DLQ and audit table.
+
+## 5. Observability (OpenTelemetry + JSON Logs)
+- Always propagate `traceId` and `spanId` via Micrometer/OTel into Kafka message headers and MDC.
+- Logs must be structured JSON (Logstash Logback encoder) and never log sensitive credentials or raw PII unmasked.
+
+## 6. Testing & Quality Gates
+- Unit tests in `domain` and `application` must achieve >85% mutation coverage with PITest (`mvn test-compile org.pitest:pitest-maven:mutationCoverage`).
+- Integration tests must use Testcontainers (real PostgreSQL + real Kafka), never H2 or embedded mocks for persistence/messaging verification.
