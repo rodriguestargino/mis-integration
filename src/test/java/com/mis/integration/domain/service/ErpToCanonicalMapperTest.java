@@ -75,4 +75,17 @@ class ErpToCanonicalMapperTest {
         assertThat(event.availableStock()).isZero();
         assertThat(event.sourceTimestamp()).isEqualTo(FIXED_NOW);
     }
+
+    @Test
+    void shouldFallbackToNowWhenTimestampIsNull() {
+        RawErpPayload payload = new RawErpPayload(
+                "dist-beta", null, "sku-1", "Prod",
+                new BigDecimal("20.00"), null, null, null, 1,
+                "acc-2", "dc-2", null
+        );
+
+        CanonicalSyncEvent event = mapper.transform(payload, "trace-null-ts");
+
+        assertThat(event.sourceTimestamp()).isEqualTo(FIXED_NOW);
+    }
 }

@@ -44,6 +44,21 @@ class ShadowMigrationValidatorTest {
                 .containsExactlyInAnyOrder("sku", "finalPrice", "availableStock", "accountId", "deliveryCenterId");
     }
 
+    @Test
+    void shouldReportNullLegacyPriceAsDiff() {
+        LegacyAdapterOutput legacy = new LegacyAdapterOutput(
+                "SKU-100", null, 15, "acc-1", "dc-1"
+        );
+        CanonicalSyncEvent canonical = canonicalEvent("SKU-100", "127.70", 15, "acc-1", "dc-1");
+
+        ShadowDiffReport report = validator.compare(legacy, canonical);
+
+        assertThat(report.matched()).isFalse();
+        assertThat(report.diffs()).hasSize(1);
+        assertThat(report.diffs().get(0).legacyValue()).isEqualTo("null");
+        assertThat(report.diffs().get(0).misValue()).isEqualTo("127.70");
+    }
+
     private CanonicalSyncEvent canonicalEvent(
             String sku, String finalPrice, int stock, String accountId, String dcId
     ) {

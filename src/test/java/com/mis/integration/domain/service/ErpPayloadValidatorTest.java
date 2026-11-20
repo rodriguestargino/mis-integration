@@ -67,6 +67,20 @@ class ErpPayloadValidatorTest {
                 });
     }
 
+    @Test
+    void shouldAcceptZeroStockAndZeroTaxRatesBoundary() {
+        RawErpPayload boundary = new RawErpPayload(
+                "partner-1", "batch-1", "SKU-1", "Desc",
+                new BigDecimal("0.01"),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                0,
+                "acc-1", "dc-1", null
+        );
+        assertThatCode(() -> validator.validate(boundary)).doesNotThrowAnyException();
+    }
+
     private RawErpPayload validPayload() {
         return new RawErpPayload(
                 "partner-1", "batch-1", "SKU-100", "Produto Teste",
